@@ -20,6 +20,7 @@
 
 #include <voltbro/eeprom/eeprom.hpp>
 #include <voltbro/encoders/ASxxxx/AS5047P.hpp>
+#include <voltbro/motors/bldc/foc/foc.h>
 
 EEPROM eeprom(&hi2c4);
 
@@ -42,12 +43,11 @@ AS5047P encoder(
         SPI1_NSS_Pin
     ),
     &hspi1,
-    false,
-    0
+    true,
+    1005
 );
+std::unique_ptr<FOC> motor;
 
-static encoder_data enc_val = 0;
-static int enc_rev = 0;
 [[noreturn]] void app() {
     setup_cordic();
     start_timers();
@@ -58,13 +58,44 @@ static int enc_rev = 0;
     }
     eeprom.delay();
 
+    motor = std::make_unique<FOC>(
+        0.00005f,
+        1.2f,
+        DriveInfo {
+            .torque_const = 0.069,  // Nm / A == V / (rad/s)
+            .speed_const = 24.42,   // (rad/s) / V
+            .max_current = 1.2,
+            .max_torque = 0.35,
+            .stall_current = 1.2,
+            .stall_timeout = 3,
+            .stall_tolerance = 0.2,
+            .supply_voltage = 20,
+            .l_pins = {
+                GpioPin(INLA_GPIO_Port, INLA_Pin),
+                GpioPin(INLB_GPIO_Port, INLB_Pin),
+                GpioPin(INLC_GPIO_Port, INLC_Pin)
+            },
+            .en_pin = GpioPin(DRV_ENABLE_GPIO_Port, DRV_ENABLE_Pin),
+            .common = {
+                .ppairs = 14,
+                .gear_ratio = 1
+            }
+        },
+        &htim1,
+        &hadc1,
+        encoder
+    );
+    motor->init();
+    motor->start();
+
     set_cyphal_mode(uavcan_node_Mode_1_0_OPERATIONAL);
+
+    //motor->calibrate();
+    motor->set_voltage_point(2);
 
     while(true) {
         cyphal_loop();
-        encoder.update_value();
-        enc_val = encoder.get_value();
-        enc_rev = encoder.get_revolutions();
+        motor->update();
     }
 }
 

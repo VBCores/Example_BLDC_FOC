@@ -147,7 +147,17 @@
     "stop_token": "cpp",
     "streambuf": "cpp",
     "thread": "cpp",
-    "typeinfo": "cpp"
+    "typeinfo": "cpp",
+    "__bit_reference": "cpp",
+    "__bits": "cpp",
+    "__errc": "cpp",
+    "__functional_base": "cpp",
+    "__locale": "cpp",
+    "__mutex_base": "cpp",
+    "__string": "cpp",
+    "__threading_support": "cpp",
+    "ios": "cpp",
+    "locale": "cpp"
   },
   "cortex-debug.variableUseNaturalFormat": true
 }
