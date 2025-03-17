@@ -77,7 +77,8 @@
 			"variant": "cpp",
 			"bit": "cpp",
 			"*.tpp": "cpp",
-			"__functional_base": "cpp"
+			"__functional_base": "cpp",
+			"__bit_reference": "cpp"
 		},
 		"cortex-debug.variableUseNaturalFormat": true
 	}

@@ -16,7 +16,6 @@
 #include <uavcan/node/Mode_1_0.h>
 #include <uavcan/si/unit/angle/Scalar_1_0.h>
 #include <uavcan/primitive/scalar/Real32_1_0.h>
-#include <uavcan/primitive/scalar/Natural32_1_0.h>
 
 #include <voltbro/eeprom/eeprom.hpp>
 #include <voltbro/encoders/ASxxxx/AS5047P.hpp>
@@ -90,8 +89,7 @@ std::unique_ptr<FOC> motor;
 
     set_cyphal_mode(uavcan_node_Mode_1_0_OPERATIONAL);
 
-    //motor->calibrate();
-    motor->set_voltage_point(2);
+    motor->set_voltage_point(0);
 
     while(true) {
         cyphal_loop();
@@ -99,19 +97,18 @@ std::unique_ptr<FOC> motor;
     }
 }
 
-TYPE_ALIAS(Natural32, uavcan_primitive_scalar_Natural32_1_0)
 TYPE_ALIAS(Real32, uavcan_primitive_scalar_Real32_1_0)
-static constexpr CanardPortID ENCODER_PORT = 7100;
+static constexpr CanardPortID ANGLE_PORT = 7000;
 static constexpr CanardPortID VOLTAGE_PORT = 5800;
 
-/*
+
 void in_loop_reporting(millis current_t) {
     static millis report_time = 0;
     EACH_N(current_t, report_time, 50, {
-        Natural32::Type enc_msg = {};
-        enc_msg.value = hall_sensor.get_value();
-        static CanardTransferID enc_transfer_id = 0;
-        get_interface()->send_msg<Natural32>(&enc_msg, ENCODER_PORT, &enc_transfer_id);
+        Real32::Type angle_msg = {};
+        angle_msg.value = motor->get_angle();
+        static CanardTransferID angle_transfer_id = 0;
+        get_interface()->send_msg<Real32>(&angle_msg, ANGLE_PORT, &angle_transfer_id);
     })
 }
 
@@ -122,11 +119,10 @@ VoltageSub(InterfacePtr interface, CanardPortID port_id): AbstractSubscription<R
         motor->set_voltage_point(msg.value);
     }
 };
-*/
 
 ReservedObject<NodeInfoReader> node_info_reader;
 ReservedObject<RegistersHandler<1>> registers_handler;
-//ReservedObject<VoltageSub> voltage_sub;
+ReservedObject<VoltageSub> voltage_sub;
 
 void setup_subscriptions() {
     HAL_FDCAN_ConfigGlobalFilter(
@@ -140,7 +136,7 @@ void setup_subscriptions() {
     auto cyphal_interface = get_interface();
     const auto node_id = get_node_id();
 
-    //voltage_sub.create(cyphal_interface, VOLTAGE_PORT + node_id);
+    voltage_sub.create(cyphal_interface, VOLTAGE_PORT + node_id);
     node_info_reader.create(
         cyphal_interface,
         "org.voltbro.bldc_foc",
@@ -166,12 +162,12 @@ void setup_subscriptions() {
                         // TODO: report error
                     }
 
-                    //motor->set_state(value);
+                    motor->set_state(value);
 
                     response.persistent = true;
                     response._mutable = true;
                     v_out._tag_ = 3;
-                    //v_out.bit.value.bitpacked[0] = motor->is_on();
+                    v_out.bit.value.bitpacked[0] = motor->is_on();
                     v_out.bit.value.count = 1;
                 }
             }
@@ -196,7 +192,6 @@ void setup_subscriptions() {
         registers_handler->make_filter(node_id)
     ))
 
-    /*
     filter_index += 1;
     HAL_IMPORTANT(apply_filter(
         filter_index,
@@ -204,5 +199,4 @@ void setup_subscriptions() {
         &sFilterConfig,
         voltage_sub->make_filter(node_id)
     ))
-    */
 }
